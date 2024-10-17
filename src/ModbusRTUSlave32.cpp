@@ -1,6 +1,7 @@
+// created: modify functions relating to holding and input registers for 32bit protocol using 2 registers at a time
 #include "ModbusRTUSlaveMulti.h"
 
-ModbusRTUSlave::ModbusRTUSlave(HardwareSerial& serial, uint8_t dePin) {
+ModbusRTUSlave32::ModbusRTUSlave32(HardwareSerial& serial, uint8_t dePin) {
   _hardwareSerial = &serial;
   #ifdef __AVR__
   _softwareSerial = 0;
@@ -17,7 +18,7 @@ ModbusRTUSlave::ModbusRTUSlave(HardwareSerial& serial, uint8_t dePin) {
 }
 
 #ifdef __AVR__
-ModbusRTUSlave::ModbusRTUSlave(SoftwareSerial& serial, uint8_t dePin) {
+ModbusRTUSlave32::ModbusRTUSlave32(SoftwareSerial& serial, uint8_t dePin) {
   _hardwareSerial = 0;
   _softwareSerial = &serial;
   #ifdef HAVE_CDCSERIAL
@@ -33,7 +34,7 @@ ModbusRTUSlave::ModbusRTUSlave(SoftwareSerial& serial, uint8_t dePin) {
 #endif
 
 #ifdef HAVE_CDCSERIAL
-ModbusRTUSlave::ModbusRTUSlave(Serial_& serial, uint8_t dePin) {
+ModbusRTUSlave32::ModbusRTUSlave32(Serial_& serial, uint8_t dePin) {
   _hardwareSerial = 0;
   #ifdef __AVR__
   _softwareSerial = 0;
@@ -48,28 +49,28 @@ ModbusRTUSlave::ModbusRTUSlave(Serial_& serial, uint8_t dePin) {
 }
 #endif
 
-void ModbusRTUSlave::configureCoils(bool coils[], uint16_t numCoils) {
+void ModbusRTUSlave32::configureCoils(bool coils[], uint16_t numCoils) {
   _coils = coils;
   _numCoils = numCoils;
 }
 
-void ModbusRTUSlave::configureDiscreteInputs(bool discreteInputs[], uint16_t numDiscreteInputs) {
+void ModbusRTUSlave32::configureDiscreteInputs(bool discreteInputs[], uint16_t numDiscreteInputs) {
   _discreteInputs = discreteInputs;
   _numDiscreteInputs = numDiscreteInputs;
 }
 
-void ModbusRTUSlave::configureHoldingRegisters(uint16_t holdingRegisters[], uint16_t numHoldingRegisters) {
+void ModbusRTUSlave32::configureHoldingRegisters(modbus32 holdingRegisters[], uint16_t numHoldingRegisters) {
   _holdingRegisters = holdingRegisters;
-  _numHoldingRegisters = numHoldingRegisters;
+  _numHoldingRegisters = numHoldingRegisters*2;
 }
 
-void ModbusRTUSlave::configureInputRegisters(uint16_t inputRegisters[], uint16_t numInputRegisters) {
+void ModbusRTUSlave32::configureInputRegisters(modbus32 inputRegisters[], uint16_t numInputRegisters) {
   _inputRegisters = inputRegisters;
-  _numInputRegisters = numInputRegisters;
+  _numInputRegisters = numInputRegisters*2;
 }
 
 #ifdef ESP32
-void ModbusRTUSlave::begin(uint8_t id, unsigned long baud, uint32_t config, int8_t rxPin, int8_t txPin, bool invert) {
+void ModbusRTUSlave32::begin(uint8_t id, unsigned long baud, uint32_t config, int8_t rxPin, int8_t txPin, bool invert) {
   if (id >= 1 && id <= 247) _id = id;
   else _id = NO_ID;
   if (_hardwareSerial) {
@@ -90,7 +91,7 @@ void ModbusRTUSlave::begin(uint8_t id, unsigned long baud, uint32_t config, int8
   _clearRxBuffer();
 }
 #else
-void ModbusRTUSlave::begin(uint8_t id, unsigned long baud, uint32_t config) {
+void ModbusRTUSlave32::begin(uint8_t id, unsigned long baud, uint32_t config) {
   if (id >= 1 && id <= 247) _id = id;
   else _id = NO_ID;
   if (_hardwareSerial) {
@@ -118,7 +119,7 @@ void ModbusRTUSlave::begin(uint8_t id, unsigned long baud, uint32_t config) {
 }
 #endif
 
-void ModbusRTUSlave::poll() {
+void ModbusRTUSlave32::poll() {
   if (_serial->available()) {
     if (_readRequest()) {
       switch (_buf[1]) {
@@ -129,22 +130,22 @@ void ModbusRTUSlave::poll() {
           _processReadDiscreteInputs();
           break;
         case 3:
-          _processReadHoldingRegisters();
+          _processRead32bitHolding();
           break;
         case 4:
-          _processReadInputRegisters();
+          _processRead32bitInput();
           break;
         case 5:
           _processWriteSingleCoil();
           break;
         case 6:
-          _processWriteSingleHoldingRegister();
+          _exceptionResponse(4);  // 32-bit protocol should not use single holding write function
           break;
         case 15:
           _processWriteMultipleCoils();
           break;
         case 16:
-          _processWriteMultipleHoldingRegisters();
+          _processWrite32bitHolding();
           break;
         default:
           _exceptionResponse(1);
@@ -154,7 +155,7 @@ void ModbusRTUSlave::poll() {
   }
 }
 
-void ModbusRTUSlave::_processReadCoils() {
+void ModbusRTUSlave32::_processReadCoils() {
   uint16_t startAddress = _bytesToWord(_buf[2], _buf[3]);
   uint16_t quantity = _bytesToWord(_buf[4], _buf[5]);
   if (!_coils || _numCoils == 0) _exceptionResponse(1);
@@ -169,7 +170,7 @@ void ModbusRTUSlave::_processReadCoils() {
   }
 }
 
-void ModbusRTUSlave::_processReadDiscreteInputs() {
+void ModbusRTUSlave32::_processReadDiscreteInputs() {
   uint16_t startAddress = _bytesToWord(_buf[2], _buf[3]);
   uint16_t quantity = _bytesToWord(_buf[4], _buf[5]);
   if (!_discreteInputs || _numDiscreteInputs == 0) _exceptionResponse(1);
@@ -184,39 +185,41 @@ void ModbusRTUSlave::_processReadDiscreteInputs() {
   }
 }
 
-void ModbusRTUSlave::_processReadHoldingRegisters() {
+void ModbusRTUSlave32::_processRead32bitHolding() {
   uint16_t startAddress = _bytesToWord(_buf[2], _buf[3]);
   uint16_t quantity = _bytesToWord(_buf[4], _buf[5]);
   if (!_holdingRegisters || _numHoldingRegisters == 0) _exceptionResponse(1);
   else if (quantity == 0 || quantity > 125) _exceptionResponse(3);
   else if (quantity > _numHoldingRegisters || startAddress > (_numHoldingRegisters - quantity)) _exceptionResponse(2);
+  else if (quantity != 2 || startAddress % 2 != 0) _exceptionResponse(4);
   else {
     _buf[2] = quantity * 2;
-    for (uint16_t i = 0; i < quantity; i++) {
-      _buf[3 + (i * 2)] = highByte(_holdingRegisters[startAddress + i]);
-      _buf[4 + (i * 2)] = lowByte(_holdingRegisters[startAddress + i]);
+    for (uint16_t i = 0; i < 2; i++) {
+      _buf[3 + (i * 2)] = highByte(_holdingRegisters[startAddress/2].reg[1-i]);   // Arduino uses little endian while most devices use big endian: flip sequence of array
+      _buf[4 + (i * 2)] = lowByte(_holdingRegisters[startAddress/2].reg[1-i]);
     }
     _writeResponse(3 + _buf[2]);
   }
 }
 
-void ModbusRTUSlave::_processReadInputRegisters() {
+void ModbusRTUSlave32::_processRead32bitInput() {
   uint16_t startAddress = _bytesToWord(_buf[2], _buf[3]);
   uint16_t quantity = _bytesToWord(_buf[4], _buf[5]);
   if (!_inputRegisters || _numInputRegisters == 0) _exceptionResponse(1);
   else if (quantity == 0 || quantity > 125) _exceptionResponse(3);
   else if (quantity > _numInputRegisters || startAddress > (_numInputRegisters - quantity)) _exceptionResponse(2);
+  else if (quantity != 2 || startAddress % 2 != 0) _exceptionResponse(4);
   else {
     _buf[2] = quantity * 2;
-    for (uint16_t i = 0; i < quantity; i++) {
-      _buf[3 + (i * 2)] = highByte(_inputRegisters[startAddress + i]);
-      _buf[4 + (i * 2)] = lowByte(_inputRegisters[startAddress + i]);
+    for (uint16_t i = 0; i < 2; i++) {
+      _buf[3 + (i * 2)] = highByte(_inputRegisters[startAddress/2].reg[1-i]);   // Arduino uses little endian while most devices use big endian: flip sequence of array
+      _buf[4 + (i * 2)] = lowByte(_inputRegisters[startAddress/2].reg[1-i]);
     }
     _writeResponse(3 + _buf[2]);
   }
 }
 
-void ModbusRTUSlave::_processWriteSingleCoil() {
+void ModbusRTUSlave32::_processWriteSingleCoil() {
   uint16_t address = _bytesToWord(_buf[2], _buf[3]);
   uint16_t value = _bytesToWord(_buf[4], _buf[5]);
   if (!_coils ||_numCoils == 0) _exceptionResponse(1);
@@ -228,18 +231,7 @@ void ModbusRTUSlave::_processWriteSingleCoil() {
   }
 }
 
-void ModbusRTUSlave::_processWriteSingleHoldingRegister() {
-  uint16_t address = _bytesToWord(_buf[2], _buf[3]);
-  uint16_t value = _bytesToWord(_buf[4], _buf[5]);
-  if (!_holdingRegisters || _numHoldingRegisters == 0) _exceptionResponse(1);
-  else if (address >= _numHoldingRegisters) _exceptionResponse(2);
-  else {
-    _holdingRegisters[address] = value;
-    _writeResponse(6);
-  }
-}
-
-void ModbusRTUSlave::_processWriteMultipleCoils() {
+void ModbusRTUSlave32::_processWriteMultipleCoils() {
   uint16_t startAddress = _bytesToWord(_buf[2], _buf[3]);
   uint16_t quantity = _bytesToWord(_buf[4], _buf[5]);
   if (!_coils || _numCoils == 0) _exceptionResponse(1);
@@ -253,23 +245,22 @@ void ModbusRTUSlave::_processWriteMultipleCoils() {
   }
 }
 
-void ModbusRTUSlave::_processWriteMultipleHoldingRegisters() {
+void ModbusRTUSlave32::_processWrite32bitHolding() {
   uint16_t startAddress = _bytesToWord(_buf[2], _buf[3]);
   uint16_t quantity = _bytesToWord(_buf[4], _buf[5]);
   if (!_holdingRegisters || _numHoldingRegisters == 0) _exceptionResponse(1);
   else if (quantity == 0 || quantity > 123 || _buf[6] != (quantity * 2)) _exceptionResponse(3);
   else if (quantity > _numHoldingRegisters || startAddress > (_numHoldingRegisters - quantity)) _exceptionResponse(2);
+  else if (quantity != 2 || startAddress % 2 != 0) _exceptionResponse(4);
   else {
-    for (uint16_t i = 0; i < quantity; i++) {
-      _holdingRegisters[startAddress + i] = _bytesToWord(_buf[i * 2 + 7], _buf[i * 2 + 8]);
+    for (uint16_t i = 0; i < 2; i++) {
+      _holdingRegisters[startAddress/2].reg[1-i] = _bytesToWord(_buf[i * 2 + 7], _buf[i * 2 + 8]);    // Arduino uses little endian while most devices use big endian: flip sequence of array
     }
     _writeResponse(6);
   }
 }
 
-
-
-bool ModbusRTUSlave::_readRequest() {
+bool ModbusRTUSlave32::_readRequest() {
   uint16_t numBytes = 0;
   unsigned long startTime = 0;
   do {
@@ -284,7 +275,7 @@ bool ModbusRTUSlave::_readRequest() {
   else return false;
 }
 
-void ModbusRTUSlave::_writeResponse(uint8_t len) {
+void ModbusRTUSlave32::_writeResponse(uint8_t len) {
   if (_buf[0] != 0) {
     uint16_t crc = _crc(len);
     _buf[len] = lowByte(crc);
@@ -302,13 +293,17 @@ void ModbusRTUSlave::_writeResponse(uint8_t len) {
   }
 }
 
-void ModbusRTUSlave::_exceptionResponse(uint8_t code) {
+// code 1: unable to process request
+// code 2: registers requested exceed registers instantiated
+// code 3: register number exceeds register limit of 0 to 125
+// code 4: write to holding / read from input request does not follow 32-bit (2 register) format (added)
+void ModbusRTUSlave32::_exceptionResponse(uint8_t code) {
   _buf[1] |= 0x80;
   _buf[2] = code;
   _writeResponse(3);
 }
 
-void ModbusRTUSlave::_clearRxBuffer() {
+void ModbusRTUSlave32::_clearRxBuffer() {
   unsigned long startTime = micros();
   do {
     if (_serial->available()) {
@@ -320,7 +315,7 @@ void ModbusRTUSlave::_clearRxBuffer() {
 
 
 
-void ModbusRTUSlave::_calculateTimeouts(unsigned long baud, uint32_t config) {
+void ModbusRTUSlave32::_calculateTimeouts(unsigned long baud, uint32_t config) {
   unsigned long bitsPerChar;
   if (config == SERIAL_8E2 || config == SERIAL_8O2) bitsPerChar = 12;
   else if (config == SERIAL_8N2 || config == SERIAL_8E1 || config == SERIAL_8O1) bitsPerChar = 11;
@@ -338,7 +333,7 @@ void ModbusRTUSlave::_calculateTimeouts(unsigned long baud, uint32_t config) {
   #endif
 }
 
-uint16_t ModbusRTUSlave::_crc(uint8_t len) {
+uint16_t ModbusRTUSlave32::_crc(uint8_t len) {
   uint16_t value = 0xFFFF;
   for (uint8_t i = 0; i < len; i++) {
     value ^= (uint16_t)_buf[i];
@@ -351,10 +346,10 @@ uint16_t ModbusRTUSlave::_crc(uint8_t len) {
   return value;
 }
 
-uint16_t ModbusRTUSlave::_div8RndUp(uint16_t value) {
+uint16_t ModbusRTUSlave32::_div8RndUp(uint16_t value) {
   return (value + 7) >> 3;
 }
 
-uint16_t ModbusRTUSlave::_bytesToWord(uint8_t high, uint8_t low) {
+uint16_t ModbusRTUSlave32::_bytesToWord(uint8_t high, uint8_t low) {
   return (high << 8) | low;
 }
