@@ -1,41 +1,29 @@
 # ModbusRTUSlave
-
-> [!WARNING]  
-> ModbusRTUSlave is currently undergoing a redesign.
-> Things may not work, or may not be corretly documented.
-> For a functional version of this library, please use the latest tagged release.
-
 Modbus is an industrial communication protocol. The RTU variant communicates over serial lines such as UART, RS-232, or RS-485. The full details of the Modbus protocol can be found at [modbus.org](https://modbus.org). A good summary can also be found on [Wikipedia](https://en.wikipedia.org/wiki/Modbus).
 
 This is an Arduino library that implements the slave/server logic of the Modbus RTU protocol. This library implements function codes 1 (Read Coils), 2 (Read Discrete Inputs), 3 (Read Holding Registers), 4 (Read Input Registers), 5 (Write Single Coil), 6 (Write Single Holding Register), 15 (Write Multiple Coils), and 16 (Write Multiple Holding Registers).
 
-This library will work with HardwareSerial, SoftwareSerial, or Serial_ (USB Serial on ATmega32u4 based boards). A driver enable pin can be set, enabling an RS-485 transceiver to be used. This library requires arrays for coils, discrete inputs, holding registers, and input registers to be passed to it. 
+This library will work with HardwareSerial, SoftwareSerial, or Serial_ (USB Serial on ATmega32u4 based boards). A driver enable pin can be set, enabling an RS-485 transceiver to be used. This library requires arrays for coils, discrete inputs, holding registers, and input registers to be passed to it.
 
 
-## Version Note
-Version 2.x.x of this library is not backward compatible with version 1.x.x. Any sketches that were written to use a 1.x.x version of this library will not work with later versions, at least not without modification.
+## Future Work
+To include ASCII functionality
+To handle multiple encoding format (e.g. endianness) of floats and ints from master
 
 
 ## Compatibility
 This library has been succsessfully tested with the following boards:
-- Arduino Leonardo
-- Arduino Make Your UNO (USB had to be unplugged to work with HardwareSerial)
-- Arduino Mega 2560
-- Arduino Nano
-- Arduino Nano 33 BLE
-- Arduino Nano 33 IoT
 - Arduino Nano ESP32
-- Arduino Nano Every
-- Arduino Nano RP2040 Connect - Using Earle F. Philhower's arduino-pico core
-- Arduino UNO R3 SMD
-- Arduino UNO R4
 
-Problems were encountered with the following board:
-- Arduino Nano RP2040 Connect - Using Arduino's ArduinoCore-mbed (Reliable communication could not be established with the master/client board)
+Note that ModbusRTUSlave64 uses 64bit doubles. ModbusRTUSlave64 cannot be used on Arduino boards that use 32bit doubles
+(https://docs.arduino.cc/language-reference/en/variables/data-types/double/) but ModbusRTUSlave and ModbusRTUSlave32 will still work. To check the size of double, use the function sizeof().
+```C++
+Serial.println(sizeof(double));.
+```
 
 
 ## Example
-- [ModbusRTUSlaveExample](https://github.com/CMB27/ModbusRTUSlave/blob/main/examples/ModbusRTUSlaveExample/ModbusRTUSlaveExample.ino)
+- [ModbusRTUSlave64Example]
 
 
 ## Methods
@@ -58,11 +46,45 @@ ModbusRTUSlave(serial, dePin)
 
 #### Example
 ``` C++
-# include <ModbusRTUSlave.h>
+# include <ModbusRTUSlaveMulti.h>
 
 const uint8_t dePin = 13;
 
 ModbusRTUSlave modbus(Serial, dePin);
+```
+
+---
+
+
+### Modbus32
+
+#### Description
+Custom datatype for conversion of 2 uint16 registers into 1 int32 or float.
+The holdingRegisters and inputRegisters array should be of this datatype.
+To keep variables of int32 or float type updated, referencing can be used.
+
+#### Syntax
+``` C++
+modbus32 holdingRegisters[2];
+float& float_var = holdingRegister[0]._float;
+uint32_t& int_var = holdingRegister[1]._int;
+```
+
+---
+
+
+### Modbus64
+
+#### Description
+Custom datatype for conversion of 4 uint16 registers into 1 int64 or double.
+The holdingRegisters and inputRegisters array should be of this datatype.
+To keep variables of int64 or double type updated, referencing can be used.
+
+#### Syntax
+``` C++
+modbus64 holdingRegisters[2];
+double& double_var = holdingRegister[0]._double;
+uint64_t& long_var = holdingRegister[1]._long;
 ```
 
 ---
@@ -117,7 +139,7 @@ modbus.configureHoldingRegisters(holdingRegisters, numHoldingRegisters)
 ```
 
 #### Parameters
-- `holdingRegisters`: an array of holding register values. Allowed data types: array of `uint16_t`.
+- `holdingRegisters`: an array of holding register values. Allowed data types: array of `Modbus64bit`.
 - `numHoldingRegisters`: the number of holding registers. This value must not be larger than the size of the array. Allowed data types: `uint16_t`.
 
 ---
@@ -135,7 +157,7 @@ modbus.configureInputRegisters(inputRegisters, numInputRegisters)
 ```
 
 #### Parameters
-- `inputRegisters`: an array of input register values. Allowed data types: array of `uint16_t`.
+- `inputRegisters`: an array of input register values. Allowed data types: array of `Modbus64bit`.
 - `numInputRegisters`: the number of input registers. This value must not be larger than the size of the array. Allowed data types: `uint16_t`.
 
 ---
@@ -168,22 +190,6 @@ _If using a SoftwareSerial port a configuration of `SERIAL_8N1` will be used reg
 
 ---
 
-
-### setResponseDelay()
-Sets an optional response delay (in ms) for the slave (default 0).
-If set to a non-zero value, the slave will wait for the specified number of milliseconds before sending the response.
-This may be useful if tight control over the dePin from the master is not possible. Adding a delay will allow the master enough time to stop transmitting and avoid issues with multiple drivers on the the physical pins.
-
-
-#### Syntax
-```C++
-modbus.setResponseDelay(responseDelay)
-```
-
-#### Parameters
-- `responseDelay`: `unsigned long` number of milliseconds to wait before responding to requests.
-
----
 
 ### poll()
 

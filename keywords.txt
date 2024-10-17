@@ -1,4 +1,8 @@
-ModbusRTUSlave	KEYWORD1		
+ModbusRTUSlave64	KEYWORD1
+ModbusRTUSlave32	KEYWORD1
+ModbusRTUSlave16	KEYWORD1
+modbus64	KEYWORD1
+modbus32	KEYWORD1
 configureCoils	KEYWORD2		
 configureDiscreteInputs	KEYWORD2		
 configureHoldingRegisters	KEYWORD2		
