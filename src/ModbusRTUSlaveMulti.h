@@ -14,18 +14,18 @@
 // and 4 registers of 16bit to 64bit int/float
 union modbus32 {
     uint16_t reg[2];
-    int32_t _int;
-    float _float;
-    operator int32_t() const {return _int;}
-    operator float() const {return _float;}
+    int32_t INT32;
+    float FLOAT32;
+    operator int32_t() const {return INT32;}
+    operator float() const {return FLOAT32;}
 };
 
 union modbus64 {
     uint16_t reg[4];
-    int64_t _long;
-    double _double;
-    operator int64_t() const {return _long;}
-    operator double() const {return _double;}
+    int64_t INT64;
+    double FLOAT64;
+    operator int64_t() const {return INT64;}
+    operator double() const {return FLOAT64;}
 };
 // ---
 

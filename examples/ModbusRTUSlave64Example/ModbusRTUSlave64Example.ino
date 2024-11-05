@@ -49,10 +49,10 @@ bool& inp_bool_1 = coils[0];
 bool& inp_bool_2 = coils[1];
 bool& out_bool_1 = discretes[0];
 bool& out_bool_2 = discretes[0];
-int64_t& inp_long = holdings[0]._long;
-double& inp_double = holdings[1]._double;
-int64_t& out_long = inputs[0]._long;
-double& out_double = inputs[1]._double;
+int64_t& inp_long = holdings[0].INT64;
+double& inp_double = holdings[1].FLOAT64;
+int64_t& out_long = inputs[0].INT64;
+double& out_double = inputs[1].FLOAT64;
 
 // for Arduino Nano ESP32, modify this line according to ModbusRTUSlaveExample for other boards
 ModbusRTUSlave64 modbus(Serial1, dePin);
