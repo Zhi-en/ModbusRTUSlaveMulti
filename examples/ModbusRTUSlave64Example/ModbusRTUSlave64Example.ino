@@ -34,21 +34,19 @@
 #include "Arduino.h"
 
 // define pins
-const uint8_t txPin = 2;
-const uint8_t rxPin = 3;
-const uint8_t dePin = 4;
+const uint8_t txPin = 5;
+const uint8_t rxPin = 4;
+const uint8_t dePin = 3;
 
 // setup modbus variables
-bool coils[2];
-bool discretes[2];
+bool coils[1];
+bool discretes[1];
 modbus64 holdings[2];
 modbus64 inputs[2];
 
 // define input output variables
-bool& inp_bool_1 = coils[0];
-bool& inp_bool_2 = coils[1];
-bool& out_bool_1 = discretes[0];
-bool& out_bool_2 = discretes[0];
+bool& inp_bool = coils[0];
+bool& out_bool = discretes[0];
 int64_t& inp_long = holdings[0].INT64;
 double& inp_double = holdings[1].FLOAT64;
 int64_t& out_long = inputs[0].INT64;
@@ -58,32 +56,30 @@ double& out_double = inputs[1].FLOAT64;
 ModbusRTUSlave64 modbus(Serial1, dePin);
 
 void setup() {
-  // Open serial communications with PC
-  Serial.begin(115200);
+  Serial.begin(115200); // open serial communications with PC
 
-  modbus.configureCoils(coils, 2);                // bool array of coil values, number of coils
-  modbus.configureDiscreteInputs(discretes, 2);   // bool array of discrete input values, number of discrete inputs
+  Serial1.begin(115200, SERIAL_8N1, rxPin, txPin);  // begin modbus serial communication
+
+  modbus.configureCoils(coils, 1);                // bool array of coil values, number of coils
+  modbus.configureDiscreteInputs(discretes, 1);   // bool array of discrete input values, number of discrete inputs
   modbus.configureHoldingRegisters(holdings, 2);  // custom 64 bit integer array of holding register values, number of holding registers
   modbus.configureInputRegisters(inputs, 2);      // custom 64 bit integer array of holding register values, number of holding registers
 
-  modbus.begin(1, 115200, SERIAL_8N1, rxPin, txPin);      // for Arduino Nano ESP32 rxPin and txPin definition required, otherwise only slave ID and baudrate required.
+  modbus.begin(1, 115200);  // slave ID and baudrate
 
-  out_bool_1 = true;
-  out_bool_2 = false;
+  out_bool = true;
   out_long = 0;
   out_double = 1.1;
 }
 
 void loop() {
-  out_bool_1 = not out_bool_1;
-  out_bool_2 = not out_bool_2;
+  out_bool = not out_bool;
   out_long -= 1;
   out_double += 1.1;
   
   modbus.poll();
 
-  Serial.println(inp_bool_1);
-  Serial.println(inp_bool_2);
+  Serial.println(inp_bool);
   Serial.println(inp_long);
   Serial.println(inp_double);
 

@@ -6,10 +6,10 @@
   The functions involving holdings and inputs are modified to take in custom Modbus16bit datatype which is a combination of 4 16bit registers instead of 16bit.
 
   This program has been succsessfully tested with the following boards:
-  - Arduino Nano ESP32
+  - Arduino Nano
 
   Other components required:
-  - MAX485 RS485 transeiver module (or similar)
+  - micro USB cable
 
   !WARNING
   When connecting boards using UART, as described in the circuit below, the logic level voltages must match (5V or 3.3V).
@@ -30,59 +30,44 @@
 
 #include <ModbusRTUSlaveMulti.h>
 
-// define pins
-const uint8_t txPin = 2;
-const uint8_t rxPin = 3;
-const uint8_t dePin = 4;
-
 // setup modbus variables
-bool coils[2];
-bool discretes[2];
+bool coils[1];
+bool discretes[1];
 modbus32 holdings[2];
 modbus32 inputs[2];
 
 // define input output variables
-bool& inp_bool_1 = coils[0];
-bool& inp_bool_2 = coils[1];
-bool& out_bool_1 = discretes[0];
-bool& out_bool_2 = discretes[0];
+bool& inp_bool = coils[0];
+bool& out_bool = discretes[0];
 int32_t& inp_int = holdings[0].INT32;
 float& inp_float = holdings[1].FLOAT32;
 int32_t& out_int = inputs[0].INT32;
 float& out_float = inputs[1].FLOAT32;
 
-// for Arduino Nano ESP32, modify this line according to ModbusRTUSlaveExample for other boards
-ModbusRTUSlave32 modbus(Serial1, dePin);
+// for coomunication over Arduino Nano micro USB port, dePin might be required for other applications
+ModbusRTUSlave32 modbus(Serial);
 
 void setup() {
-  // Open serial communications with PC
-  Serial.begin(115200);
+  Serial.begin(115200);   // begin modbus serial communication
 
-  modbus.configureCoils(coils, 2);                // bool array of coil values, number of coils
-  modbus.configureDiscreteInputs(discretes, 2);   // bool array of discrete input values, number of discrete inputs
+  modbus.configureCoils(coils, 1);                // bool array of coil values, number of coils
+  modbus.configureDiscreteInputs(discretes, 1);   // bool array of discrete input values, number of discrete inputs
   modbus.configureHoldingRegisters(holdings, 2);  // custom 64 bit integer array of holding register values, number of holding registers
   modbus.configureInputRegisters(inputs, 2);      // custom 64 bit integer array of holding register values, number of holding registers
 
-  modbus.begin(1, 115200, SERIAL_8N1, rxPin, txPin);      // for Arduino Nano ESP32 rxPin and txPin definition required, otherwise only slave ID and baudrate required.
+  modbus.begin(1, 115200);  // slave ID and baudrate
 
-  out_bool_1 = true;
-  out_bool_2 = false;
+  out_bool = true;
   out_int = 0;
   out_float = 1.1;
 }
 
 void loop() {
-  out_bool_1 = not out_bool_1;
-  out_bool_2 = not out_bool_2;
+  out_bool = not out_bool;
   out_int -= 1;
   out_float += 1.1;
   
   modbus.poll();
-
-  Serial.println(inp_bool_1);
-  Serial.println(inp_bool_2);
-  Serial.println(inp_int);
-  Serial.println(inp_float);
 
   delay(100);
 }

@@ -91,6 +91,18 @@ uint16_t holdingRegisters[2];
 uint16_t inputRegisters[2];
 
 void setup() {
+  #if defined USE_SOFTWARE_SERIAL
+    mySerial.begin(38400);
+  #else
+    #if (defined __AVR_ATmega328P__ || defined __AVR_ATmega168__ || defined __AVR_ATmega1280__ || defined __AVR_ATmega2560__)
+      Serial.begin(38400);
+    #elif defined ESP32
+      Serial0.begin(38400);
+    #else
+      Serial1.begin(38400);
+    #endif
+  #endif
+
   #if defined ESP32
     analogReadResolution(10);
   #endif
