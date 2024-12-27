@@ -1,14 +1,8 @@
 // created: modify functions relating to holding and input registers for 64bit protocol using 4 registers at a time
+// combined HardwareSerial, SofrwareSerial and Serial_ types into Stream type, removed Serial begin in modbus begin
 #include "ModbusRTUSlaveMulti.h"
 
-ModbusRTUSlave64::ModbusRTUSlave64(HardwareSerial& serial, uint8_t dePin) {
-  _hardwareSerial = &serial;
-  #ifdef __AVR__
-  _softwareSerial = 0;
-  #endif
-  #ifdef HAVE_CDCSERIAL
-  _usbSerial = 0;
-  #endif
+ModbusRTUSlave64::ModbusRTUSlave64(Stream& serial, uint8_t dePin) {
   _serial = &serial;
   _coils = 0;
   _discreteInputs = 0;
@@ -16,38 +10,6 @@ ModbusRTUSlave64::ModbusRTUSlave64(HardwareSerial& serial, uint8_t dePin) {
   _inputRegisters = 0;
   _dePin = dePin;
 }
-
-#ifdef __AVR__
-ModbusRTUSlave64::ModbusRTUSlave64(SoftwareSerial& serial, uint8_t dePin) {
-  _hardwareSerial = 0;
-  _softwareSerial = &serial;
-  #ifdef HAVE_CDCSERIAL
-  _usbSerial = 0;
-  #endif
-  _serial = &serial;
-  _coils = 0;
-  _discreteInputs = 0;
-  _holdingRegisters = 0;
-  _inputRegisters = 0;
-  _dePin = dePin;
-}
-#endif
-
-#ifdef HAVE_CDCSERIAL
-ModbusRTUSlave64::ModbusRTUSlave64(Serial_& serial, uint8_t dePin) {
-  _hardwareSerial = 0;
-  #ifdef __AVR__
-  _softwareSerial = 0;
-  #endif
-  _usbSerial = &serial;
-  _serial = &serial;
-  _coils = 0;
-  _discreteInputs = 0;
-  _holdingRegisters = 0;
-  _inputRegisters = 0;
-  _dePin = dePin;
-}
-#endif
 
 void ModbusRTUSlave64::configureCoils(bool coils[], uint16_t numCoils) {
   _coils = coils;
@@ -69,55 +31,16 @@ void ModbusRTUSlave64::configureInputRegisters(modbus64 inputRegisters[], uint16
   _numInputRegisters = numInputRegisters*4;
 }
 
-#ifdef ESP32
-void ModbusRTUSlave64::begin(uint8_t id, unsigned long baud, uint32_t config, int8_t rxPin, int8_t txPin, bool invert) {
-  if (id >= 1 && id <= 247) _id = id;
-  else _id = NO_ID;
-  if (_hardwareSerial) {
-    _calculateTimeouts(baud, config);
-    _hardwareSerial->begin(baud, config, rxPin, txPin, invert);
-  }
-  #ifdef HAVE_CDCSERIAL
-  else if (_usbSerial) {
-    _calculateTimeouts(baud, config);
-    _usbSerial->begin(baud, config);
-    while (!_usbSerial);
-  }
-  #endif
-  if (_dePin != NO_DE_PIN) {
-    pinMode(_dePin, OUTPUT);
-    digitalWrite(_dePin, LOW);
-  }
-  _clearRxBuffer();
-}
-#else
 void ModbusRTUSlave64::begin(uint8_t id, unsigned long baud, uint32_t config) {
   if (id >= 1 && id <= 247) _id = id;
   else _id = NO_ID;
-  if (_hardwareSerial) {
-    _calculateTimeouts(baud, config);
-    _hardwareSerial->begin(baud, config);
-  }
-  #ifdef __AVR__
-  else if (_softwareSerial) {
-    _calculateTimeouts(baud, SERIAL_8N1);
-    _softwareSerial->begin(baud);
-  }
-  #endif
-  #ifdef HAVE_CDCSERIAL
-  else if (_usbSerial) {
-    _calculateTimeouts(baud, config);
-    _usbSerial->begin(baud, config);
-    while (!_usbSerial);
-  }
-  #endif
+  _calculateTimeouts(baud, config);
   if (_dePin != NO_DE_PIN) {
     pinMode(_dePin, OUTPUT);
     digitalWrite(_dePin, LOW);
   }
   _clearRxBuffer();
 }
-#endif
 
 void ModbusRTUSlave64::poll() {
   if (_serial->available()) {

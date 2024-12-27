@@ -6,9 +6,6 @@
 #define NO_ID 0
 
 #include "Arduino.h"
-#ifdef __AVR__
-#include <SoftwareSerial.h>
-#endif
 
 // added: custom datatype to convert 2 registers of 16 bit to 32bit int/float 
 // and 4 registers of 16bit to 64bit int/float
@@ -29,34 +26,19 @@ union modbus64 {
 };
 // ---
 
+// combined HardwareSerial, SofrwareSerial and Serial_ types into Stream type
+// removed serial begin: Stream does not have begin method, requires users to run Serial.begin themselves
 class ModbusRTUSlave {
   public:
-    ModbusRTUSlave(HardwareSerial& serial, uint8_t dePin = NO_DE_PIN);
-    #ifdef __AVR__
-    ModbusRTUSlave(SoftwareSerial& serial, uint8_t dePin = NO_DE_PIN);
-    #endif
-    #ifdef HAVE_CDCSERIAL
-    ModbusRTUSlave(Serial_& serial, uint8_t dePin = NO_DE_PIN);
-    #endif
+    ModbusRTUSlave(Stream& serial, uint8_t dePin = NO_DE_PIN);
     void configureCoils(bool coils[], uint16_t numCoils);
     void configureDiscreteInputs(bool discreteInputs[], uint16_t numDiscreteInputs);
     void configureHoldingRegisters(uint16_t holdingRegisters[], uint16_t numHoldingRegisters);
     void configureInputRegisters(uint16_t inputRegisters[], uint16_t numInputRegisters);
-    #ifdef ESP32
-    void begin(uint8_t id, unsigned long baud, uint32_t config = SERIAL_8N1, int8_t rxPin = -1, int8_t txPin = -1, bool invert = false);
-    #else
     void begin(uint8_t id, unsigned long baud, uint32_t config = SERIAL_8N1);
-    #endif
     void poll();
     
   private:
-    HardwareSerial *_hardwareSerial;
-    #ifdef __AVR__
-    SoftwareSerial *_softwareSerial;
-    #endif
-    #ifdef HAVE_CDCSERIAL
-    Serial_ *_usbSerial;
-    #endif
     Stream *_serial;
     uint8_t _dePin;
     uint8_t _buf[MODBUS_RTU_SLAVE_BUF_SIZE];
@@ -98,32 +80,15 @@ class ModbusRTUSlave {
 // added: ModbusRTUSlave32 and ModbusRTUSlave64
 class ModbusRTUSlave32 {
   public:
-    ModbusRTUSlave32(HardwareSerial& serial, uint8_t dePin = NO_DE_PIN);
-    #ifdef __AVR__
-    ModbusRTUSlave32(SoftwareSerial& serial, uint8_t dePin = NO_DE_PIN);
-    #endif
-    #ifdef HAVE_CDCSERIAL
-    ModbusRTUSlave32(Serial_& serial, uint8_t dePin = NO_DE_PIN);
-    #endif
+    ModbusRTUSlave32(Stream& serial, uint8_t dePin = NO_DE_PIN);
     void configureCoils(bool coils[], uint16_t numCoils);
     void configureDiscreteInputs(bool discreteInputs[], uint16_t numDiscreteInputs);
     void configureHoldingRegisters(modbus32 holdingRegisters[], uint16_t numHoldingRegisters);
     void configureInputRegisters(modbus32 inputRegisters[], uint16_t numInputRegisters);
-    #ifdef ESP32
-    void begin(uint8_t id, unsigned long baud, uint32_t config = SERIAL_8N1, int8_t rxPin = -1, int8_t txPin = -1, bool invert = false);
-    #else
     void begin(uint8_t id, unsigned long baud, uint32_t config = SERIAL_8N1);
-    #endif
     void poll();
     
   private:
-    HardwareSerial *_hardwareSerial;
-    #ifdef __AVR__
-    SoftwareSerial *_softwareSerial;
-    #endif
-    #ifdef HAVE_CDCSERIAL
-    Serial_ *_usbSerial;
-    #endif
     Stream *_serial;
     uint8_t _dePin;
     uint8_t _buf[MODBUS_RTU_SLAVE_BUF_SIZE];
@@ -163,32 +128,15 @@ class ModbusRTUSlave32 {
 
 class ModbusRTUSlave64 {
   public:
-    ModbusRTUSlave64(HardwareSerial& serial, uint8_t dePin = NO_DE_PIN);
-    #ifdef __AVR__
-    ModbusRTUSlave64(SoftwareSerial& serial, uint8_t dePin = NO_DE_PIN);
-    #endif
-    #ifdef HAVE_CDCSERIAL
-    ModbusRTUSlave64(Serial_& serial, uint8_t dePin = NO_DE_PIN);
-    #endif
+    ModbusRTUSlave64(Stream& serial, uint8_t dePin = NO_DE_PIN);
     void configureCoils(bool coils[], uint16_t numCoils);
     void configureDiscreteInputs(bool discreteInputs[], uint16_t numDiscreteInputs);
     void configureHoldingRegisters(modbus64 holdingRegisters[], uint16_t numHoldingRegisters);
     void configureInputRegisters(modbus64 inputRegisters[], uint16_t numInputRegisters);
-    #ifdef ESP32
-    void begin(uint8_t id, unsigned long baud, uint32_t config = SERIAL_8N1, int8_t rxPin = -1, int8_t txPin = -1, bool invert = false);
-    #else
     void begin(uint8_t id, unsigned long baud, uint32_t config = SERIAL_8N1);
-    #endif
     void poll();
     
   private:
-    HardwareSerial *_hardwareSerial;
-    #ifdef __AVR__
-    SoftwareSerial *_softwareSerial;
-    #endif
-    #ifdef HAVE_CDCSERIAL
-    Serial_ *_usbSerial;
-    #endif
     Stream *_serial;
     uint8_t _dePin;
     uint8_t _buf[MODBUS_RTU_SLAVE_BUF_SIZE];
@@ -200,7 +148,7 @@ class ModbusRTUSlave64 {
     uint16_t _numDiscreteInputs = 0;
     uint16_t _numHoldingRegisters = 0;
     uint16_t _numInputRegisters = 0;
-    uint8_t _id;
+    uint8_t _id = NO_ID;
     unsigned long _charTimeout;
     unsigned long _frameTimeout;
     #ifdef ARDUINO_ARCH_RENESAS

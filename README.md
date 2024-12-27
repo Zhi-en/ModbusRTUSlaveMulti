@@ -1,3 +1,7 @@
+# Release Notes
+Note that version 1.1.0 has a breaking change in the software from version 1.0.0
+version 1.1.0 does not begin the serial communication when running the modbus begin function. As such, the user is required to run Serial.begin(baudrate) before running modbus.begin(slave_id, baudrate). Do note that modbus.begin is still required to instantiate the slave ID and other timing parameters related to baudrate.
+
 # ModbusRTUSlave
 Modbus is an industrial communication protocol. The RTU variant communicates over serial lines such as UART, RS-232, or RS-485. The full details of the Modbus protocol can be found at [modbus.org](https://modbus.org). A good summary can also be found on [Wikipedia](https://en.wikipedia.org/wiki/Modbus).
 
@@ -14,6 +18,7 @@ To handle multiple encoding format (e.g. endianness) of floats and ints from mas
 ## Compatibility
 This library has been succsessfully tested with the following boards:
 - Arduino Nano ESP32
+- Arduino Nano
 
 Note that ModbusRTUSlave64 uses 64bit doubles. ModbusRTUSlave64 cannot be used on Arduino boards that use 32bit doubles
 (https://docs.arduino.cc/language-reference/en/variables/data-types/double/) but ModbusRTUSlave and ModbusRTUSlave32 will still work. To check the size of double, use the function sizeof().
@@ -24,6 +29,8 @@ Serial.println(sizeof(double));.
 
 ## Example
 - [ModbusRTUSlave64Example]
+- [ModbusRTUSlave32Example]
+- [ModbusRTUSlaveExample]
 
 
 ## Methods
@@ -218,6 +225,7 @@ bool coils[2];
 bool discreteInputs[2];
 
 void setup() {
+  Serial.begin(3400);
   pinMode(coilPins[0], OUTPUT);
   pinMode(coilPins[1], OUTPUT);
   pinMode(discreteInputPins[0], INPUT);
