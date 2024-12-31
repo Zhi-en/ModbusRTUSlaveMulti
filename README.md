@@ -18,7 +18,7 @@ To handle multiple encoding format (e.g. endianness) of floats and ints from mas
 ## Compatibility
 This library has been succsessfully tested with the following boards:
 - Arduino Nano ESP32
-- Arduino Nano
+- Arduino Micro
 
 Note that ModbusRTUSlave64 uses 64bit doubles. ModbusRTUSlave64 cannot be used on Arduino boards that use 32bit doubles
 (https://docs.arduino.cc/language-reference/en/variables/data-types/double/) but ModbusRTUSlave and ModbusRTUSlave32 will still work. To check the size of double, use the function sizeof().

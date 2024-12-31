@@ -6,7 +6,7 @@
   The functions involving holdings and inputs are modified to take in custom Modbus16bit datatype which is a combination of 4 16bit registers instead of 16bit.
 
   This program has been succsessfully tested with the following boards:
-  - Arduino Nano
+  - Arduino Micro
 
   Other components required:
   - micro USB cable
