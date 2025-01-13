@@ -53,10 +53,10 @@ void ModbusRTUSlave64::poll() {
           _processReadDiscreteInputs();
           break;
         case 3:
-          _processRead64bitHolding();
+          _processRead64bitHoldings();
           break;
         case 4:
-          _processRead64bitInput();
+          _processRead64bitInputs();
           break;
         case 5:
           _processWriteSingleCoil();
@@ -68,7 +68,7 @@ void ModbusRTUSlave64::poll() {
           _processWriteMultipleCoils();
           break;
         case 16:
-          _processWrite64bitHolding();
+          _processWrite64bitHoldings();
           break;
         default:
           _exceptionResponse(1);
@@ -108,35 +108,35 @@ void ModbusRTUSlave64::_processReadDiscreteInputs() {
   }
 }
 
-void ModbusRTUSlave64::_processRead64bitHolding() {
+void ModbusRTUSlave64::_processRead64bitHoldings() {
   uint16_t startAddress = _bytesToWord(_buf[2], _buf[3]);
   uint16_t quantity = _bytesToWord(_buf[4], _buf[5]);
   if (!_holdingRegisters || _numHoldingRegisters == 0) _exceptionResponse(1);
   else if (quantity == 0 || quantity > 125) _exceptionResponse(3);
   else if (quantity > _numHoldingRegisters || startAddress > (_numHoldingRegisters - quantity)) _exceptionResponse(2);
-  else if (quantity != 4 || startAddress % 4 != 0) _exceptionResponse(4);
+  else if (quantity % 4 != 0 || startAddress % 4 != 0) _exceptionResponse(4);
   else {
     _buf[2] = quantity * 2;
-    for (uint16_t i = 0; i < 4; i++) {
-      _buf[3 + (i * 2)] = highByte(_holdingRegisters[startAddress/4].reg[3-i]);   // Arduino uses little endian while most devices use big endian: flip sequence of array
-      _buf[4 + (i * 2)] = lowByte(_holdingRegisters[startAddress/4].reg[3-i]);
+    for (uint16_t i = 0; i < quantity; i++) {
+      _buf[3 + (i * 2)] = highByte(_holdingRegisters[(startAddress + i)/ 4].reg[3 - (i % 4)]);  // Arduino uses little endian while most devices use big endian: flip sequence of array
+      _buf[4 + (i * 2)] = lowByte(_holdingRegisters[(startAddress + i)/ 4].reg[3 - (i % 4)]);   // integer division gives floor results (startAddress + i)/4 is the same as floor((startAddess + i)/4.0)
     }
     _writeResponse(3 + _buf[2]);
   }
 }
 
-void ModbusRTUSlave64::_processRead64bitInput() {
+void ModbusRTUSlave64::_processRead64bitInputs() {
   uint16_t startAddress = _bytesToWord(_buf[2], _buf[3]);
   uint16_t quantity = _bytesToWord(_buf[4], _buf[5]);
   if (!_inputRegisters || _numInputRegisters == 0) _exceptionResponse(1);
   else if (quantity == 0 || quantity > 125) _exceptionResponse(3);
   else if (quantity > _numInputRegisters || startAddress > (_numInputRegisters - quantity)) _exceptionResponse(2);
-  else if (quantity != 4 || startAddress % 4 != 0) _exceptionResponse(4);
+  else if (quantity % 4 != 0 || startAddress % 4 != 0) _exceptionResponse(4);
   else {
     _buf[2] = quantity * 2;
-    for (uint16_t i = 0; i < 4; i++) {
-      _buf[3 + (i * 2)] = highByte(_inputRegisters[startAddress/4].reg[3-i]);   // Arduino uses little endian while most devices use big endian: flip sequence of array
-      _buf[4 + (i * 2)] = lowByte(_inputRegisters[startAddress/4].reg[3-i]);
+    for (uint16_t i = 0; i < quantity; i++) {
+      _buf[3 + (i * 2)] = highByte(_inputRegisters[(startAddress + i)/ 4].reg[3 - (i % 4)]);    // Arduino uses little endian while most devices use big endian: flip sequence of array
+      _buf[4 + (i * 2)] = lowByte(_inputRegisters[(startAddress + i)/ 4].reg[3 - (i % 4)]);
     }
     _writeResponse(3 + _buf[2]);
   }
@@ -168,16 +168,16 @@ void ModbusRTUSlave64::_processWriteMultipleCoils() {
   }
 }
 
-void ModbusRTUSlave64::_processWrite64bitHolding() {
+void ModbusRTUSlave64::_processWrite64bitHoldings() {
   uint16_t startAddress = _bytesToWord(_buf[2], _buf[3]);
   uint16_t quantity = _bytesToWord(_buf[4], _buf[5]);
   if (!_holdingRegisters || _numHoldingRegisters == 0) _exceptionResponse(1);
   else if (quantity == 0 || quantity > 123 || _buf[6] != (quantity * 2)) _exceptionResponse(3);
   else if (quantity > _numHoldingRegisters || startAddress > (_numHoldingRegisters - quantity)) _exceptionResponse(2);
-  else if (quantity != 4 || startAddress % 4 != 0) _exceptionResponse(4);
+  else if (quantity % 4 != 0 || startAddress % 4 != 0) _exceptionResponse(4);
   else {
-    for (uint16_t i = 0; i < 4; i++) {
-      _holdingRegisters[startAddress/4].reg[3-i] = _bytesToWord(_buf[i * 2 + 7], _buf[i * 2 + 8]);    // Arduino uses little endian while most devices use big endian: flip sequence of array
+    for (uint16_t i = 0; i < quantity; i++) {
+      _holdingRegisters[(startAddress + i)/ 4].reg[3 - (i % 4)] = _bytesToWord(_buf[i * 2 + 7], _buf[i * 2 + 8]);   // Arduino uses little endian while most devices use big endian: flip sequence of array
     }
     _writeResponse(6);
   }
