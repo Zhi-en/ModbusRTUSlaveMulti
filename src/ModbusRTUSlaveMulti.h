@@ -109,11 +109,11 @@ class ModbusRTUSlave32 {
 
     void _processReadCoils();
     void _processReadDiscreteInputs();
-    void _processRead32bitHolding();
-    void _processRead32bitInput();
+    void _processRead32bitHoldings();
+    void _processRead32bitInputs();
     void _processWriteSingleCoil();
     void _processWriteMultipleCoils();
-    void _processWrite32bitHolding();
+    void _processWrite32bitHoldings();
 
     bool _readRequest();
     void _writeResponse(uint8_t len);
@@ -157,11 +157,11 @@ class ModbusRTUSlave64 {
 
     void _processReadCoils();
     void _processReadDiscreteInputs();
-    void _processRead64bitHolding();
-    void _processRead64bitInput();
+    void _processRead64bitHoldings();
+    void _processRead64bitInputs();
     void _processWriteSingleCoil();
     void _processWriteMultipleCoils();
-    void _processWrite64bitHolding();
+    void _processWrite64bitHoldings();
 
     bool _readRequest();
     void _writeResponse(uint8_t len);
