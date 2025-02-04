@@ -62,13 +62,16 @@ void ModbusRTUSlave32::poll() {
           _processWriteSingleCoil();
           break;
         case 6:
-          _exceptionResponse(4);  // 32-bit protocol should not use single holding write function
+          _exceptionResponse(1);  // 32-bit protocol should not use single holding write function: illegal function
           break;
         case 15:
           _processWriteMultipleCoils();
           break;
         case 16:
           _processWrite32bitHoldings();
+          break;
+        case 23:
+          _processAtomicReadWriteRegisters();    // added: fc23 atomic read write
           break;
         default:
           _exceptionResponse(1);
@@ -114,7 +117,7 @@ void ModbusRTUSlave32::_processRead32bitHoldings() {
   if (!_holdingRegisters || _numHoldingRegisters == 0) _exceptionResponse(1);
   else if (quantity == 0 || quantity > 125) _exceptionResponse(3);
   else if (quantity > _numHoldingRegisters || startAddress > (_numHoldingRegisters - quantity)) _exceptionResponse(2);
-  else if (quantity % 2 != 0 || startAddress % 2 != 0) _exceptionResponse(4);
+  else if (quantity % 2 != 0 || startAddress % 2 != 0) _exceptionResponse(2);
   else {
     _buf[2] = quantity * 2;
     for (uint16_t i = 0; i < quantity; i++) {
@@ -131,7 +134,7 @@ void ModbusRTUSlave32::_processRead32bitInputs() {
   if (!_inputRegisters || _numInputRegisters == 0) _exceptionResponse(1);
   else if (quantity == 0 || quantity > 125) _exceptionResponse(3);
   else if (quantity > _numInputRegisters || startAddress > (_numInputRegisters - quantity)) _exceptionResponse(2);
-  else if (quantity % 2 != 0 || startAddress % 2 != 0) _exceptionResponse(4);
+  else if (quantity % 2 != 0 || startAddress % 2 != 0) _exceptionResponse(2);
   else {
     _buf[2] = quantity * 2;
     for (uint16_t i = 0; i < quantity; i++) {
@@ -174,7 +177,7 @@ void ModbusRTUSlave32::_processWrite32bitHoldings() {
   if (!_holdingRegisters || _numHoldingRegisters == 0) _exceptionResponse(1);
   else if (quantity == 0 || quantity > 123 || _buf[6] != (quantity * 2)) _exceptionResponse(3);
   else if (quantity > _numHoldingRegisters || startAddress > (_numHoldingRegisters - quantity)) _exceptionResponse(2);
-  else if (quantity % 2 != 0 || startAddress % 2 != 0) _exceptionResponse(4);
+  else if (quantity % 2 != 0 || startAddress % 2 != 0) _exceptionResponse(2);
   else {
     for (uint16_t i = 0; i < quantity; i++) {
       _holdingRegisters[(startAddress + i)/ 2].reg[1 - (i % 2)] = _bytesToWord(_buf[i * 2 + 7], _buf[i * 2 + 8]);   // Arduino uses little endian while most devices use big endian: flip sequence of array
@@ -182,6 +185,39 @@ void ModbusRTUSlave32::_processWrite32bitHoldings() {
     _writeResponse(6);
   }
 }
+
+// added: fc23 atomic read write
+void ModbusRTUSlave32::_processAtomicReadWriteRegisters() {
+  // perform write holdings
+  uint16_t write_startAddress = _bytesToWord(_buf[6], _buf[7]);
+  uint16_t write_quantity = _bytesToWord(_buf[8], _buf[9]);
+  if (!_holdingRegisters || _numHoldingRegisters == 0) _exceptionResponse(1);
+  else if (write_quantity == 0 || write_quantity > 121 || _buf[10] != (write_quantity * 2)) _exceptionResponse(3);
+  else if (write_quantity > _numHoldingRegisters || write_startAddress > (_numHoldingRegisters - write_quantity)) _exceptionResponse(2);
+  else if (write_quantity % 2 != 0 || write_startAddress % 2 != 0) _exceptionResponse(2);
+  else {
+    for (uint16_t i = 0; i < write_quantity; i++) {
+      _holdingRegisters[(write_startAddress + i)/ 2].reg[1 - (i % 2)] = _bytesToWord(_buf[i * 2 + 11], _buf[i * 2 + 12]);   // Arduino uses little endian while most devices use big endian: flip sequence of array
+    }
+    // perform read inputs
+    uint16_t read_startAddress = _bytesToWord(_buf[2], _buf[3]);
+    uint16_t read_quantity = _bytesToWord(_buf[4], _buf[5]);
+    if (!_inputRegisters || _numInputRegisters == 0) _exceptionResponse(1);
+    else if (read_quantity == 0 || read_quantity > 125) _exceptionResponse(3);
+    else if (read_quantity > _numInputRegisters || read_startAddress > (_numInputRegisters - read_quantity)) _exceptionResponse(2);
+    else if (read_quantity % 2 != 0 || read_startAddress % 2 != 0) _exceptionResponse(2);
+    else {
+        _buf[2] = read_quantity * 2;
+        for (uint16_t i = 0; i < read_quantity; i++) {
+        _buf[3 + (i * 2)] = highByte(_inputRegisters[(read_startAddress + i)/ 2].reg[1 - (i % 2)]);    // Arduino uses little endian while most devices use big endian: flip sequence of array
+        _buf[4 + (i * 2)] = lowByte(_inputRegisters[(read_startAddress + i)/ 2].reg[1 - (i % 2)]);
+        }
+        _writeResponse(3 + _buf[2]);
+    }
+  }
+}
+// ---
+
 
 bool ModbusRTUSlave32::_readRequest() {
   uint16_t numBytes = 0;
@@ -216,10 +252,9 @@ void ModbusRTUSlave32::_writeResponse(uint8_t len) {
   }
 }
 
-// code 1: unable to process request
-// code 2: registers requested exceed registers instantiated
-// code 3: register number exceeds register limit of 0 to 125
-// code 4: write to holding / read from input request does not follow 32-bit (2 register) format (added)
+// code 1: illegal function code: either function code not recognised or function code not applicable based on registers instantiated in the slave
+// code 2: illegal address: registers requested exceed registers instantiated or does not match the multiples of 2 required for 32-bit
+// code 3: illegal data value: register value exceeds value limit
 void ModbusRTUSlave32::_exceptionResponse(uint8_t code) {
   _buf[1] |= 0x80;
   _buf[2] = code;
