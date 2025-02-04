@@ -1,6 +1,31 @@
 # Release Notes
-Note that version 1.1.0 has a breaking change in the software from version 1.0.0
-version 1.1.0 does not begin the serial communication when running the modbus begin function. As such, the user is required to run Serial.begin(baudrate) before running modbus.begin(slave_id, baudrate). Do note that modbus.begin is still required to instantiate the slave ID and other timing parameters related to baudrate.
+*Note that version 1.1.0 has a breaking change in the software from version 1.0.0 refer to release notes below*
+
+v 1.2.0: include function code 23 for atomic read and write where holding is written to and input is read from.
+Message format from master is:
+Description         size        e.g. dec    e.g. hex
+Slave Address       1 byte      1           0x01
+Function code       1 byte      23          0x17
+Read register       2 byte      0           0x0000
+Num read registers  2 byte      2           0x0002
+Write register      2 byte      0           0x0000
+Num write registers 2 byte      3           0x0003
+Write data bytesize 1 byte      6           0x06
+Data to write       x byte      1,2,3       0x000100020003
+CRC                 2 byte
+Message format to master follows fc 4:
+Description         size        e.g. dec    e.g. hex
+Slave Address       1 byte      1           0x01
+Function code       1 byte      23          0x17
+Read data bytesize  1 byte      4           0x04
+Data to write       x byte      4,5         0x00040005
+CRC                 2 byte
+
+v 1.1.1: enable read and write of multiple 32-bit and 64-bit holding/input registers
+
+v 1.1.0: expand modbus capability to Arduino's inbuilt USB Serial port. Code breaking change: does not begin the serial communication when running the modbus begin function. As such, the user is required to run Serial.begin(baudrate) before running modbus.begin(slave_id, baudrate). Do note that modbus.begin is still required to instantiate the slave ID and other timing parameters related to baudrate.
+
+v1.0.0: first release. Modified from ModbusRTUSlave to add 2 additional classes: ModbusRTUSlave32 and ModbusRTUSlave64 that allows communication with datatypes that require higher number of bits (e.g. float requires 32 bits). To support reading of float or int, 2 new datatypes also created: Modbus32 and Modbus64. This new dtypes allow reading of underlying data as a float or as an int depending on the expected encoding of data.
 
 # ModbusRTUSlave
 Modbus is an industrial communication protocol. The RTU variant communicates over serial lines such as UART, RS-232, or RS-485. The full details of the Modbus protocol can be found at [modbus.org](https://modbus.org). A good summary can also be found on [Wikipedia](https://en.wikipedia.org/wiki/Modbus).
@@ -73,8 +98,8 @@ To keep variables of int32 or float type updated, referencing can be used.
 #### Syntax
 ``` C++
 modbus32 holdingRegisters[2];
-float& float_var = holdingRegister[0]._float;
-uint32_t& int_var = holdingRegister[1]._int;
+float& float_var = holdingRegister[0].FLOAT32;
+uint32_t& int_var = holdingRegister[1].INT32;
 ```
 
 ---
@@ -90,8 +115,8 @@ To keep variables of int64 or double type updated, referencing can be used.
 #### Syntax
 ``` C++
 modbus64 holdingRegisters[2];
-double& double_var = holdingRegister[0]._double;
-uint64_t& long_var = holdingRegister[1]._long;
+double& double_var = holdingRegister[0].FLOAT64;
+uint64_t& long_var = holdingRegister[1].INT64;
 ```
 
 ---

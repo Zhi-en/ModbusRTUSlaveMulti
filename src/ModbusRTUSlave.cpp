@@ -69,6 +69,9 @@ void ModbusRTUSlave::poll() {
         case 16:
           _processWriteMultipleHoldingRegisters();
           break;
+        case 23:
+          _processAtomicReadWriteRegisters();    // added: fc23 atomic read write
+          break;
         default:
           _exceptionResponse(1);
           break;
@@ -190,6 +193,35 @@ void ModbusRTUSlave::_processWriteMultipleHoldingRegisters() {
   }
 }
 
+// added: fc23 atomic read write
+void ModbusRTUSlave::_processAtomicReadWriteRegisters() {
+  // perform write holdings
+  uint16_t write_startAddress = _bytesToWord(_buf[6], _buf[7]);
+  uint16_t write_quantity = _bytesToWord(_buf[8], _buf[9]);
+  if (!_holdingRegisters || _numHoldingRegisters == 0) _exceptionResponse(1);
+  else if (write_quantity == 0 || write_quantity > 121 || _buf[10] != (write_quantity * 2)) _exceptionResponse(3);
+  else if (write_quantity > _numHoldingRegisters || write_startAddress > (_numHoldingRegisters - write_quantity)) _exceptionResponse(2);
+  else {
+    for (uint16_t i = 0; i < write_quantity; i++) {
+      _holdingRegisters[write_startAddress + i] = _bytesToWord(_buf[i * 2 + 11], _buf[i * 2 + 12]);
+    }
+    // perform read inputs
+    uint16_t read_startAddress = _bytesToWord(_buf[2], _buf[3]);
+    uint16_t read_quantity = _bytesToWord(_buf[4], _buf[5]);
+    if (!_inputRegisters || _numInputRegisters == 0) _exceptionResponse(1);
+    else if (read_quantity == 0 || read_quantity > 125) _exceptionResponse(3);
+    else if (read_quantity > _numInputRegisters || read_startAddress > (_numInputRegisters - read_quantity)) _exceptionResponse(2);
+    else {
+      _buf[2] = read_quantity * 2;
+      for (uint16_t i = 0; i < read_quantity; i++) {
+        _buf[3 + (i * 2)] = highByte(_inputRegisters[read_startAddress + i]);
+        _buf[4 + (i * 2)] = lowByte(_inputRegisters[read_startAddress + i]);
+      }
+      _writeResponse(3 + _buf[2]);
+    }
+  }
+}
+// ---
 
 
 bool ModbusRTUSlave::_readRequest() {

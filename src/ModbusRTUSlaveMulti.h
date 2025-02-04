@@ -65,6 +65,7 @@ class ModbusRTUSlave {
     void _processWriteSingleHoldingRegister();
     void _processWriteMultipleCoils();
     void _processWriteMultipleHoldingRegisters();
+    void _processAtomicReadWriteRegisters();     // added: fc23 atomic read write
 
     bool _readRequest();
     void _writeResponse(uint8_t len);
@@ -114,6 +115,7 @@ class ModbusRTUSlave32 {
     void _processWriteSingleCoil();
     void _processWriteMultipleCoils();
     void _processWrite32bitHoldings();
+    void _processAtomicReadWriteRegisters();     // added: fc23 atomic read write
 
     bool _readRequest();
     void _writeResponse(uint8_t len);
@@ -162,6 +164,7 @@ class ModbusRTUSlave64 {
     void _processWriteSingleCoil();
     void _processWriteMultipleCoils();
     void _processWrite64bitHoldings();
+    void _processAtomicReadWriteRegisters();     // added: fc23 atomic read write
 
     bool _readRequest();
     void _writeResponse(uint8_t len);
